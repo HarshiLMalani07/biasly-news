@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Menu } from "lucide-react";
+import { Show, SignInButton, SignUpButton, UserButton } from "@clerk/nextjs";
 import { Logo } from "@/components/brand/logo";
 import { Button } from "@/components/ui/button";
 
@@ -19,8 +20,10 @@ const navItems: NavItem[] = [
 ];
 
 /**
- * Masthead: menu, wordmark, section nav, and the auth buttons. The nav targets
- * and the buttons are inert until those routes and Clerk exist.
+ * Masthead: menu, wordmark, section nav, and the Clerk auth controls. The nav
+ * targets and Subscribe are still inert until those routes exist; the auth
+ * controls are live. `<Show>` is presentation only - the real gate on
+ * /news/[id] lives in proxy.ts.
  */
 export function SiteHeader() {
   return (
@@ -76,7 +79,28 @@ export function SiteHeader() {
           <Button variant="primary" className="hidden sm:inline-flex">
             Subscribe
           </Button>
-          <Button variant="secondary">Login</Button>
+
+          <Show
+            when="signed-in"
+            fallback={
+              <>
+                <SignInButton>
+                  <Button variant="secondary">Login</Button>
+                </SignInButton>
+                <SignUpButton>
+                  <Button variant="primary" className="hidden sm:inline-flex">
+                    Sign up
+                  </Button>
+                </SignUpButton>
+              </>
+            }
+          >
+            {/* Matches the 40px button height so the header does not shift
+                when Clerk resolves auth state after hydration. */}
+            <span className="flex h-10 items-center">
+              <UserButton />
+            </span>
+          </Show>
         </div>
       </div>
     </header>

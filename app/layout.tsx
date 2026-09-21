@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
+import { ClerkProvider } from "@clerk/nextjs";
+import { shadcn } from "@clerk/ui/themes";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -18,7 +20,11 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${poppins.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col">
+        {/* Clerk's shadcn theme reads the :root variables globals.css already
+            re-points at the biasly palette, so Clerk UI inherits our colours. */}
+        <ClerkProvider appearance={{ theme: shadcn }}>{children}</ClerkProvider>
+      </body>
     </html>
   );
 }
