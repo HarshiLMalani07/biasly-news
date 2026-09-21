@@ -160,6 +160,14 @@
     line-height: 1.4;
   }
 
+  /* Feed card headline: 16px at SemiBold. The scale's H4 is the right size but
+     too light, and H3 at 20px is too large for a three-up card grid. */
+  .text-card-title {
+    font-size: 16px;
+    font-weight: 600;
+    line-height: 1.35;
+  }
+
   /* ----- Grid -------------------------------------------------------------
      Container 1280px - 12 columns - 24px gutter - 24px margin.
   ------------------------------------------------------------------------ */

@@ -27,10 +27,15 @@ export function BiasMeter({
 }: BiasMeterProps) {
   const pct = normalizeBiasPercentages({ left, center, right });
 
+  const isFull = variant === "full";
+
   const segments: Segment[] = [
     {
       key: "left",
-      label: `Left ${pct.left}%`,
+      // The compact bar is only ~370px wide in the feed grid, so a narrow left
+      // segment cannot fit the full word. Visual only - the aria-label below
+      // still spells all three out.
+      label: `${isFull ? "Left" : "L"} ${pct.left}%`,
       value: pct.left,
       className: "bg-bias-left text-bg-primary",
     },
@@ -47,9 +52,6 @@ export function BiasMeter({
       className: "bg-bias-right text-bg-primary",
     },
   ];
-
-  const isFull = variant === "full";
-
 
   return (
     <div className={cn("w-full", className)}>
