@@ -211,23 +211,38 @@ function quoteForIn(value: string): string {
   return `"${value.replace(/"/g, '\\"')}"`;
 }
 
-/**
- * Append-only insert (AGENTS.md section 10). Duplicates on `url` are ignored
- * rather than replaced, and nothing is ever deleted or reset by a scrape.
- * Returns the rows that were actually inserted.
- */
-export async function insertArticles(
-  rows: ArticleInsert[]
-): Promise<ArticleRow[]> {
-  if (rows.length === 0) return [];
+/** Postgres 23505: unique violation. Here it means "already stored". */
+const UNIQUE_VIOLATION_CODE = "23505";
 
+/**
+ * Append-only insert of one article (AGENTS.md section 10). Returns the stored
+ * row, or null when the article already exists.
+ *
+ * Deliberately one row at a time rather than a batch: `articles` is unique on
+ * `url` *and* on `canonical_url`, so a single `onConflict: "url"` upsert cannot
+ * express both. Two candidates that resolve to the same canonical page would
+ * raise 23505 and, inside a batch, take every other row in the statement down
+ * with them. Per-row, a conflict costs exactly the one duplicate.
+ *
+ * Nothing here deletes, replaces or resets an existing article.
+ */
+export async function insertArticle(
+  row: ArticleInsert
+): Promise<ArticleRow | null> {
   const supabase = getServiceRoleClient();
 
-  return unwrap(
-    "insertArticles",
-    await supabase
-      .from("articles")
-      .upsert(rows, { onConflict: "url", ignoreDuplicates: true })
-      .select("*")
-  );
+  const { data, error } = await supabase
+    .from("articles")
+    .insert(row)
+    .select("*")
+    .single();
+
+  if (error) {
+    // A conflict on either unique column means the article is already stored.
+    if (error.code === UNIQUE_VIOLATION_CODE) return null;
+
+    throw new Error(`insertArticle: ${error.message}`);
+  }
+
+  return data;
 }
