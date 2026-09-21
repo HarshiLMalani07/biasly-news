@@ -4,6 +4,8 @@ import { normalizeBiasPercentages, type BiasPercentages } from "@/lib/bias";
 export type BiasMeterProps = BiasPercentages & {
   /** "full" adds the 0% / 50% / 100% scale row beneath the bar. */
   variant?: "full" | "compact";
+  /** Overrides the variant's default scale row without changing bar height or labels. */
+  showScale?: boolean;
   className?: string;
 };
 
@@ -23,11 +25,13 @@ export function BiasMeter({
   center,
   right,
   variant = "full",
+  showScale,
   className,
 }: BiasMeterProps) {
   const pct = normalizeBiasPercentages({ left, center, right });
 
   const isFull = variant === "full";
+  const withScale = showScale ?? isFull;
 
   const segments: Segment[] = [
     {
@@ -82,7 +86,7 @@ export function BiasMeter({
         )}
       </div>
 
-      {isFull ? (
+      {withScale ? (
         <div className="mt-2 flex items-center justify-between text-caption text-text-secondary">
           <span>0%</span>
           <span>50%</span>

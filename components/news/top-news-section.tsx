@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { NewsCard } from "@/components/news/news-card";
 import type { HomeArticle } from "@/lib/demo/top-news";
 
@@ -14,11 +15,13 @@ export function TopNewsSection({ articles }: TopNewsSectionProps) {
 
         <div className="mt-6 grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-3">
           {articles.map((article, index) => (
-            <NewsCard
+            <Link
               key={article.id}
-              article={article}
-              priority={index < 3}
-            />
+              href={`/news/${article.id}`}
+              className="group block h-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-text-primary/30 focus-visible:ring-offset-2"
+            >
+              <NewsCard article={article} priority={index < 3} />
+            </Link>
           ))}
         </div>
       </div>

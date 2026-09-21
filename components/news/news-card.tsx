@@ -25,6 +25,7 @@ export function NewsCard({ article, priority = false, className }: NewsCardProps
     <article
       className={cn(
         "flex h-full flex-col overflow-hidden rounded-lg border border-border bg-bg-primary shadow-sm",
+        "transition-shadow group-hover:shadow-md",
         className
       )}
     >
@@ -56,7 +57,7 @@ export function NewsCard({ article, priority = false, className }: NewsCardProps
           </span>
         </p>
 
-        <h3 className="text-card-title mt-2 line-clamp-3 text-text-primary">
+        <h3 className="text-card-title mt-2 line-clamp-3 text-text-primary transition-colors group-hover:text-bias-right">
           {article.title}
         </h3>
 
