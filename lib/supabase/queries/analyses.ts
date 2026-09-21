@@ -9,10 +9,26 @@ import type {
 
 /** Analysis reads and writes (AGENTS.md section 19). */
 
-/** An article row with its analysis ids embedded, used for pending detection. */
-type ArticleWithAnalysisIds = ArticleRow & {
+/** Matches the URL existence check's cap on `.in()` values (section 9). */
+const ID_CHUNK_SIZE = 15;
+
+/** Only what pending detection needs: the id, and whether an analysis exists. */
+type PendingScanRow = {
+  id: string;
   article_analyses: { id: string }[] | { id: string } | null;
 };
+
+/**
+ * PostgREST returns a to-one embed as an object, but as an array when it cannot
+ * prove the relationship is unique. Both shapes mean "no analysis" when empty.
+ */
+function hasNoAnalysis(row: PendingScanRow): boolean {
+  const analyses = row.article_analyses;
+
+  if (analyses === null) return true;
+
+  return Array.isArray(analyses) ? analyses.length === 0 : false;
+}
 
 /**
  * The pending-analysis check (AGENTS.md section 19 rule 1).
@@ -23,42 +39,91 @@ type ArticleWithAnalysisIds = ArticleRow & {
  * such an article must be picked up again.
  *
  * The emptiness test runs in JavaScript rather than as a filter on the
- * embedded table, per the joined-filter gotcha in AGENTS.md section 21.
+ * embedded table, per the joined-filter gotcha in AGENTS.md section 21. Only
+ * ids are selected, so scanning every article does not drag their `raw_text`
+ * across the wire; `getArticlesByIds` loads the full rows one batch at a time.
  */
 export async function getArticlesPendingAnalysis(
-  limit = 50
-): Promise<ArticleRow[]> {
+  limit?: number
+): Promise<string[]> {
   const supabase = getServiceRoleClient();
 
   const rows = unwrap(
     "getArticlesPendingAnalysis",
     await supabase
       .from("articles")
-      .select("*, article_analyses ( id )")
+      .select("id, article_analyses ( id )")
       .order("published_at", { ascending: false })
-      .returns<ArticleWithAnalysisIds[]>()
+      .returns<PendingScanRow[]>()
   );
 
-  const pending = rows.filter((row) => {
-    const analyses = row.article_analyses;
-    if (analyses === null) return true;
-    return Array.isArray(analyses) ? analyses.length === 0 : false;
-  });
+  const pending = rows.filter(hasNoAnalysis).map((row) => row.id);
 
-  // Drop the embed, hand back plain article rows.
-  return pending.slice(0, limit).map((row) => ({
-    id: row.id,
-    source_id: row.source_id,
-    url: row.url,
-    canonical_url: row.canonical_url,
-    title: row.title,
-    image_url: row.image_url,
-    published_at: row.published_at,
-    raw_text: row.raw_text,
-    scraped_at: row.scraped_at,
-    analyzed_at: row.analyzed_at,
-    created_at: row.created_at,
-  }));
+  return limit === undefined ? pending : pending.slice(0, limit);
+}
+
+/**
+ * Which of these article ids still have no analysis. Used when the caller named
+ * the articles to analyse, so an already-analysed id is skipped rather than
+ * analysed twice.
+ */
+export async function filterPendingArticleIds(
+  ids: string[]
+): Promise<string[]> {
+  if (ids.length === 0) return [];
+
+  const pending = new Set(await getArticlesPendingAnalysis());
+
+  return ids.filter((id) => pending.has(id));
+}
+
+/** An article plus its publication name, which the analysis prompt names. */
+export type ArticleForAnalysis = ArticleRow & { source_name: string | null };
+
+/** The same row as PostgREST returns it, before the embed is flattened. */
+type RawArticleForAnalysis = ArticleRow & {
+  sources: { name: string } | { name: string }[] | null;
+};
+
+function withSourceName(row: RawArticleForAnalysis): ArticleForAnalysis {
+  const { sources, ...article } = row;
+  const source = Array.isArray(sources) ? (sources[0] ?? null) : sources;
+
+  return { ...article, source_name: source?.name ?? null };
+}
+
+/**
+ * Full article rows for one batch, in the order the ids were given.
+ *
+ * Chunked like the URL existence check of AGENTS.md section 9: never more than
+ * 15 values in a single `.in()` filter.
+ */
+export async function getArticlesByIds(
+  ids: string[]
+): Promise<ArticleForAnalysis[]> {
+  if (ids.length === 0) return [];
+
+  const supabase = getServiceRoleClient();
+  const byId = new Map<string, ArticleForAnalysis>();
+
+  for (let i = 0; i < ids.length; i += ID_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + ID_CHUNK_SIZE);
+
+    const rows = unwrap(
+      "getArticlesByIds",
+      await supabase
+        .from("articles")
+        .select("*, sources ( name )")
+        .in("id", chunk)
+        .returns<RawArticleForAnalysis[]>()
+    );
+
+    for (const row of rows) byId.set(row.id, withSourceName(row));
+  }
+
+  return ids
+    .map((id) => byId.get(id))
+    .filter((row): row is ArticleForAnalysis => row !== undefined);
 }
 
 /**

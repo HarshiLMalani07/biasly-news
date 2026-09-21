@@ -31,7 +31,7 @@ type RawArticleRow = ArticleRow & {
   article_analyses: ArticleAnalysisRow | ArticleAnalysisRow[] | null;
 };
 
-const ARTICLE_SELECT = `
+const ARTICLE_FIELDS = `
   id,
   source_id,
   url,
@@ -43,26 +43,40 @@ const ARTICLE_SELECT = `
   scraped_at,
   analyzed_at,
   created_at,
-  sources ( name, logo_url ),
-  article_analyses (
-    id,
-    article_id,
-    summary,
-    sentiment_score,
-    sentiment_label,
-    bias_score,
-    bias_label,
-    left_percentage,
-    center_percentage,
-    right_percentage,
-    confidence,
-    framing_notes,
-    loaded_terms,
-    disclaimer,
-    model,
-    created_at
-  )
+  sources ( name, logo_url )
 `;
+
+const ANALYSIS_FIELDS = `
+  id,
+  article_id,
+  summary,
+  sentiment_score,
+  sentiment_label,
+  bias_score,
+  bias_label,
+  left_percentage,
+  center_percentage,
+  right_percentage,
+  confidence,
+  framing_notes,
+  loaded_terms,
+  disclaimer,
+  model,
+  created_at
+`;
+
+const ARTICLE_SELECT = `${ARTICLE_FIELDS}, article_analyses ( ${ANALYSIS_FIELDS} )`;
+
+/**
+ * The feed's select. `!inner` makes the analysis embed an inner join, so
+ * `.range()` pages over *analysed* articles only.
+ *
+ * Without it the window would be taken first and unanalysed rows dropped
+ * afterwards, which yields short pages and can skip analysed articles
+ * entirely. This is the embed's join type, not the forbidden
+ * `.eq('foreignTable.column', value)` filter of AGENTS.md section 21.
+ */
+const FEED_SELECT = `${ARTICLE_FIELDS}, article_analyses!inner ( ${ANALYSIS_FIELDS} )`;
 
 /**
  * PostgREST returns a to-one embed as an object, but as an array when it
@@ -82,14 +96,16 @@ function flatten(row: RawArticleRow): ArticleWithAnalysis {
 }
 
 /**
- * The home feed: newest analysed articles first.
+ * One page of the home feed: newest analysed articles first.
  *
- * An article only reaches a reader once its analysis exists (AGENTS.md
- * section 18), so rows without one are dropped here - in JS, not with a filter
- * on the embedded table.
+ * An article only reaches a reader once its analysis exists, so the inner join
+ * in `FEED_SELECT` keeps unanalysed rows out of the window rather than
+ * filtering them out of it afterwards. `published_at` can tie across articles,
+ * so `id` breaks the tie and keeps the page boundary stable between requests.
  */
 export async function getFeedArticles(
-  limit = 24
+  limit = 24,
+  offset = 0
 ): Promise<ArticleWithAnalysis[]> {
   const supabase = getServiceRoleClient();
 
@@ -97,9 +113,10 @@ export async function getFeedArticles(
     "getFeedArticles",
     await supabase
       .from("articles")
-      .select(ARTICLE_SELECT)
+      .select(FEED_SELECT)
       .order("published_at", { ascending: false })
-      .limit(limit)
+      .order("id", { ascending: false })
+      .range(offset, offset + limit - 1)
       .returns<RawArticleRow[]>()
   );
 

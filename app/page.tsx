@@ -14,7 +14,7 @@ import { getHomeFeed } from "@/lib/articles/read";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const articles = await getHomeFeed();
+  const feed = await getHomeFeed();
 
   return (
     <>
@@ -23,7 +23,7 @@ export default async function Home() {
       <TopicRail />
 
       <main className="flex-1">
-        <TopNewsSection articles={articles} />
+        <TopNewsSection initial={feed} />
 
         {/* The design-system reference sheet, kept on the home route so the
             tokens stay visually verifiable against the live feed above. */}

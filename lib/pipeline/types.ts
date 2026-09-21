@@ -61,3 +61,62 @@ export type ScrapeOptions = {
   sourceNames?: string[];
   perSource: number;
 };
+
+/**
+ * Why one article produced no analysis. A closed union, like
+ * `RejectionReason`, so the summary's grouped counts stay countable.
+ */
+export type AnalysisFailureReason =
+  // The model answered, but not with something savable, twice.
+  | "invalid_output"
+  // The provider call itself failed (rate limit, timeout, auth).
+  | "model_error"
+  // The analysis was valid but could not be written.
+  | "save_failed"
+  // Nothing to analyse: the article has too little text. Skipped, not failed.
+  | "insufficient_text"
+  // The article vanished between the pending scan and the batch load.
+  | "article_missing";
+
+export type AnalyzeStatus = "completed" | "completed_with_errors" | "failed";
+
+/** One batch's contribution, for the per-batch log line (section 19 rule 7). */
+export type AnalyzeBatchOutcome = {
+  batch: number;
+  size: number;
+  analyzed: number;
+  skipped: number;
+  failed: number;
+};
+
+/** The summary object of AGENTS.md section 19 rules 7-9. */
+export type AnalyzeSummary = {
+  status: AnalyzeStatus;
+  runId: string;
+  model: string;
+  /** Pending articles found when the run started - what it set out to do. */
+  pendingAtStart: number;
+  analyzed: number;
+  skipped: number;
+  failed: number;
+  batches: number;
+  batchSize: number;
+  /** Still pending when the run stopped; 0 after a clean full run. */
+  pendingAtEnd: number;
+  durationMs: number;
+  failureReasons: Partial<Record<AnalysisFailureReason, number>>;
+  batchOutcomes: AnalyzeBatchOutcome[];
+};
+
+/**
+ * What `runAnalysis` accepts. Every field is optional, and an empty object
+ * means "every pending article" - section 19's default behaviour.
+ */
+export type AnalyzeOptions = {
+  /** Analyse only these articles, skipping any that already have an analysis. */
+  articleIds?: string[];
+  /** Stop after this many articles. Absent means no limit. */
+  limit?: number;
+  /** Articles per batch. Absent means `ANALYSIS_BATCH_SIZE`, default 5. */
+  batchSize?: number;
+};
