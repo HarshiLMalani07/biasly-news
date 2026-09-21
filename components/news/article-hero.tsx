@@ -3,8 +3,9 @@ import Image from "next/image";
 export type ArticleHeroProps = {
   imageUrl: string;
   imageAlt: string;
-  caption: string;
-  credit: string;
+  /** Neither caption nor credit is stored yet (AGENTS.md section 7). */
+  caption?: string | null;
+  credit?: string | null;
 };
 
 /** The lead photograph with its caption and photo credit. */
@@ -27,10 +28,12 @@ export function ArticleHero({
         />
       </div>
 
-      <figcaption className="text-caption mt-2 text-text-secondary">
-        <span className="block">{caption}</span>
-        <span className="block">{credit}</span>
-      </figcaption>
+      {caption || credit ? (
+        <figcaption className="text-caption mt-2 text-text-secondary">
+          {caption ? <span className="block">{caption}</span> : null}
+          {credit ? <span className="block">{credit}</span> : null}
+        </figcaption>
+      ) : null}
     </figure>
   );
 }

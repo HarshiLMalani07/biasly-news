@@ -1,5 +1,5 @@
 import { RelatedStoryCard } from "@/components/news/related-story-card";
-import type { RelatedArticle } from "@/lib/demo/article-detail";
+import type { RelatedArticle } from "@/lib/articles/view-models";
 
 export type RelatedStoriesProps = {
   articles: readonly RelatedArticle[];

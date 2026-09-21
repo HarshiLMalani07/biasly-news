@@ -1,6 +1,6 @@
 import { Bookmark, MoreHorizontal, Share2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import type { ArticleDetail } from "@/lib/demo/article-detail";
+import type { ArticleDetail } from "@/lib/articles/view-models";
 
 export type ArticleHeaderProps = {
   article: ArticleDetail;
@@ -10,19 +10,26 @@ export type ArticleHeaderProps = {
 export function ArticleHeader({ article }: ArticleHeaderProps) {
   return (
     <header>
+      {/* Category and country are not stored yet, so the eyebrow falls back
+          to the outlet that published the piece. */}
       <p className="text-caption">
-        <span className="text-text-primary">{article.category}</span>
-        <span className="text-text-secondary">
-          {" · "}
-          {article.country}
+        <span className="text-text-primary">
+          {article.category ?? article.sourceName}
         </span>
+        {article.category && article.country ? (
+          <span className="text-text-secondary">
+            {" · "}
+            {article.country}
+          </span>
+        ) : null}
       </p>
 
       <h1 className="text-h1 mt-2 text-text-primary">{article.title}</h1>
 
       <div className="mt-4 flex flex-wrap items-center justify-between gap-4">
         <div className="text-body-sm flex items-center gap-3 text-text-secondary">
-          <span>By {article.authorName}</span>
+          {/* No byline is stored; the outlet stands in its place. */}
+          <span>{article.authorName ? `By ${article.authorName}` : article.sourceName}</span>
           <span aria-hidden className="text-border">
             |
           </span>

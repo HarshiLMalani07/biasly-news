@@ -2,10 +2,10 @@ import Image from "next/image";
 import { Info } from "lucide-react";
 import { cn } from "cn";
 import { BiasMeter } from "@/components/bias/bias-meter";
-import type { HomeArticle } from "@/lib/demo/top-news";
+import type { FeedArticle } from "@/lib/articles/view-models";
 
 export type NewsCardProps = {
-  article: HomeArticle;
+  article: FeedArticle;
   /** Set on above-the-fold cards so their images are not lazy-loaded. */
   priority?: boolean;
   className?: string;
@@ -16,6 +16,9 @@ export type NewsCardProps = {
  * Presentational only - it renders the article passed to it and never reads
  * from the database or triggers pipeline work (AGENTS.md section 5).
  */
+const titleCase = (value: string): string =>
+  value.charAt(0).toUpperCase() + value.slice(1);
+
 export function NewsCard({ article, priority = false, className }: NewsCardProps) {
   const confidencePercent = Math.round(article.confidence * 100);
 
@@ -49,11 +52,15 @@ export function NewsCard({ article, priority = false, className }: NewsCardProps
       </div>
 
       <div className="flex flex-1 flex-col p-4">
+        {/* Category and country have no column behind them yet, so the
+            eyebrow leads with the outlet and the sentiment instead. */}
         <p className="text-caption truncate">
-          <span className="text-text-primary">{article.category}</span>
+          <span className="text-text-primary">
+            {article.category ?? article.sourceName}
+          </span>
           <span className="text-text-secondary">
             {" · "}
-            {article.country}
+            {article.country ?? titleCase(article.sentimentLabel)}
           </span>
         </p>
 
@@ -73,10 +80,11 @@ export function NewsCard({ article, priority = false, className }: NewsCardProps
         />
 
         <div className="text-caption mt-2 flex items-center justify-between gap-2 text-text-secondary">
-          <span className="shrink-0">{article.sourceCount} sources</span>
           <span className="truncate">
-            {article.sourceName} &middot; {article.publishedLabel}
+            AI framing: {titleCase(article.framingLabel)} &middot;{" "}
+            {confidencePercent}%
           </span>
+          <span className="shrink-0">{article.publishedLabel}</span>
         </div>
       </div>
     </article>

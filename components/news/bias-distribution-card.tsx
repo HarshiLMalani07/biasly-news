@@ -5,7 +5,8 @@ import type { BiasPercentages } from "@/lib/bias";
 
 export type BiasDistributionCardProps = {
   bias: BiasPercentages;
-  sourceCount: number;
+  /** Absent until biasly tracks a story across outlets (AGENTS.md section 7). */
+  sourceCount?: number | null;
 };
 
 /**
@@ -43,7 +44,9 @@ export function BiasDistributionCard({
         showScale={false}
       />
 
-      <p className="text-caption text-text-secondary">{sourceCount} sources</p>
+      <p className="text-caption text-text-secondary">
+        {sourceCount ? `${sourceCount} sources` : "Estimated from this article's text"}
+      </p>
     </Card>
   );
 }

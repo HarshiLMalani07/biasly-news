@@ -1,6 +1,6 @@
 import { AnalysisCard } from "@/components/analysis/analysis-card";
 import { Button } from "@/components/ui/button";
-import type { ArticleDetail } from "@/lib/demo/article-detail";
+import type { ArticleDetail } from "@/lib/articles/view-models";
 
 export type AiSummaryCardProps = {
   article: ArticleDetail;
@@ -32,7 +32,11 @@ export function AiSummaryCard({ article }: AiSummaryCardProps) {
       </ul>
 
       <div className="flex flex-col gap-1">
-        <p className="text-caption text-text-secondary">{article.disclaimer}</p>
+        {article.disclaimer ? (
+          <p className="text-caption text-text-secondary">
+            {article.disclaimer}
+          </p>
+        ) : null}
         <p className="text-caption text-text-secondary">
           Analysed by {article.model}
         </p>

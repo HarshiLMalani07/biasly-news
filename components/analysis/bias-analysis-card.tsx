@@ -3,8 +3,11 @@ import { BiasBreakdownRow } from "@/components/analysis/bias-breakdown-row";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { normalizeBiasPercentages } from "@/lib/bias";
-import type { ArticleDetail } from "@/lib/demo/article-detail";
-import type { FramingLabel, SentimentLabel } from "@/lib/demo/top-news";
+import type {
+  ArticleDetail,
+  FramingLabel,
+  SentimentLabel,
+} from "@/lib/articles/view-models";
 
 export type BiasAnalysisCardProps = {
   article: ArticleDetail;
@@ -73,7 +76,9 @@ export function BiasAnalysisCard({ article }: BiasAnalysisCardProps) {
         </div>
 
         <p className="text-body-sm text-bias-right">
-          Based on {article.sourceCount} balanced sources
+          {article.sourceCount
+            ? `Based on ${article.sourceCount} balanced sources`
+            : "Estimated from this article's text"}
         </p>
       </div>
 
@@ -103,9 +108,11 @@ export function BiasAnalysisCard({ article }: BiasAnalysisCardProps) {
         </p>
       </div>
 
-      <p className="text-body-sm border-t border-border pt-4 text-text-secondary">
-        {article.framingNotes}
-      </p>
+      {article.framingNotes ? (
+        <p className="text-body-sm border-t border-border pt-4 text-text-secondary">
+          {article.framingNotes}
+        </p>
+      ) : null}
 
       {article.loadedTerms.length > 0 ? (
         <div className="flex flex-col gap-2">

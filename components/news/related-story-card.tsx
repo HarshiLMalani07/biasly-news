@@ -1,6 +1,6 @@
 import Image from "next/image";
 import Link from "next/link";
-import type { RelatedArticle } from "@/lib/demo/article-detail";
+import type { RelatedArticle } from "@/lib/articles/view-models";
 
 export type RelatedStoryCardProps = {
   article: RelatedArticle;
@@ -24,13 +24,17 @@ export function RelatedStoryCard({ article }: RelatedStoryCardProps) {
       </div>
 
       <div className="flex min-w-0 flex-col gap-1">
-        <p className="text-caption truncate">
-          <span className="text-text-primary">{article.category}</span>
-          <span className="text-text-secondary">
-            {" · "}
-            {article.country}
-          </span>
-        </p>
+        {article.category ? (
+          <p className="text-caption truncate">
+            <span className="text-text-primary">{article.category}</span>
+            {article.country ? (
+              <span className="text-text-secondary">
+                {" · "}
+                {article.country}
+              </span>
+            ) : null}
+          </p>
+        ) : null}
 
         <h3 className="text-body-sm line-clamp-2 font-semibold text-text-primary transition-colors group-hover:text-bias-right">
           {article.title}

@@ -4,9 +4,18 @@ import { SiteHeader } from "@/components/layout/site-header";
 import { TopicRail } from "@/components/layout/topic-rail";
 import { UtilityBar } from "@/components/layout/utility-bar";
 import { TopNewsSection } from "@/components/news/top-news-section";
-import { topNewsArticles } from "@/lib/demo/top-news";
+import { getHomeFeed } from "@/lib/articles/read";
 
-export default function Home() {
+/**
+ * Read fresh on every request: the hourly pipeline adds articles continuously,
+ * and this project does not enable Cache Components, so without this the feed
+ * would be baked at build time.
+ */
+export const dynamic = "force-dynamic";
+
+export default async function Home() {
+  const articles = await getHomeFeed();
+
   return (
     <>
       <UtilityBar />
@@ -14,7 +23,7 @@ export default function Home() {
       <TopicRail />
 
       <main className="flex-1">
-        <TopNewsSection articles={topNewsArticles} />
+        <TopNewsSection articles={articles} />
 
         {/* The design-system reference sheet, kept on the home route so the
             tokens stay visually verifiable against the live feed above. */}

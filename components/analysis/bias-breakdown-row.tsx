@@ -1,5 +1,7 @@
 import { cn } from "cn";
-import type { SourceBias } from "@/lib/demo/article-detail";
+
+/** Which side of the split a row represents. */
+export type BiasTone = "left" | "center" | "right";
 
 export type BiasBreakdownRowProps = {
   label: "Left" | "Center" | "Right";
@@ -7,14 +9,14 @@ export type BiasBreakdownRowProps = {
   value: string;
   /** 0 to 100; clamped here so a bad value can never render a broken bar. */
   percent: number;
-  tone: SourceBias;
+  tone: BiasTone;
 };
 
 /**
  * The centre fill is deliberately not `bg-bias-center` - that token is also the
  * track colour, so the centre bar would disappear against it.
  */
-const fillByTone: Record<SourceBias, string> = {
+const fillByTone: Record<BiasTone, string> = {
   left: "bg-bias-left",
   center: "bg-text-secondary/30",
   right: "bg-bias-right",
