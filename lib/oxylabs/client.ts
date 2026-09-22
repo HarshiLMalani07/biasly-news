@@ -9,8 +9,10 @@ import {
  * The Oxylabs Web Scraper API client.
  *
  * Realtime (`realtime.oxylabs.io`) is used because manual scraping needs the
- * HTML in the same request; `data.oxylabs.io` is Push-Pull and belongs to the
- * Scheduler task (AGENTS.md section 18).
+ * HTML in the same request; `data.oxylabs.io` is Push-Pull and belongs to
+ * `lib/oxylabs/scheduler.ts` (AGENTS.md section 18), which imports
+ * `authorizationHeader` and `apiErrorMessage` from here rather than reading the
+ * credentials a second time.
  *
  * News homepages have no dedicated Oxylabs source, so every call uses
  * `source: "universal"` with a `url`. `parse: true` does not apply - it only
@@ -47,7 +49,7 @@ function requireEnv(name: string): string {
   return value;
 }
 
-function authorizationHeader(): string {
+export function authorizationHeader(): string {
   const username = requireEnv("OXY_WSA_USERNAME");
   const password = requireEnv("OXY_WSA_PASSWORD");
 
@@ -161,8 +163,11 @@ export async function fetchPageHtml(
 /**
  * Turns a non-2xx API status into a message. Never includes the credentials or
  * the raw body, which can be large.
+ *
+ * Exported for `lib/oxylabs/scheduler.ts`, which talks to the same API over a
+ * different host and must report failures identically.
  */
-function apiErrorMessage(status: number, body: string): string {
+export function apiErrorMessage(status: number, body: string): string {
   if (status === 401) {
     return (
       "Oxylabs rejected the credentials (401). Check OXY_WSA_USERNAME and " +

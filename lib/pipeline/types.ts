@@ -135,3 +135,71 @@ export type AnalyzeOptions = {
   /** Articles per batch. Absent means `ANALYSIS_BATCH_SIZE`, default 5. */
   batchSize?: number;
 };
+
+/* -------------------------------------------------------------------------
+ * Oxylabs Scheduler and the automatic hourly pipeline (AGENTS.md section 18)
+ * ------------------------------------------------------------------------- */
+
+/** One source's schedule, as the sync route reports it. */
+export type SyncedSchedule = {
+  source: string;
+  /** The exact 64-bit id as a digit string - never a number (section 18). */
+  scheduleId: string;
+  cron: string;
+  /** True when this run created it, false when it already existed. */
+  created: boolean;
+};
+
+/** The summary object `syncSchedules` logs and returns. */
+export type SyncSchedulesSummary = {
+  status: ScrapeStatus;
+  runId: string;
+  activeSources: number;
+  schedulesCreated: number;
+  schedulesExisting: number;
+  /** Schedules switched off because their source is no longer active. */
+  schedulesDeactivated: number;
+  /** Oxylabs schedules with no DB row, switched off by the orphan sweep. */
+  orphansDeactivated: number;
+  durationMs: number;
+  errors: { scope: string; message: string }[];
+  schedules: SyncedSchedule[];
+};
+
+/** What `runScheduledProcessing` accepts. */
+export type ScheduledProcessingOptions = {
+  perSource: number;
+};
+
+/**
+ * The summary object `runScheduledProcessing` logs and returns.
+ *
+ * Every `ScrapeSummary` field is present and means exactly what it means for a
+ * manual run - the two share the same pipeline code - plus the job accounting
+ * that is specific to pulling HTML out of the Scheduler.
+ */
+export type ScheduledProcessingSummary = ScrapeSummary & {
+  schedulesChecked: number;
+  /** Completed jobs seen, whether or not this pass consumed them. */
+  jobsDone: number;
+  jobsProcessed: number;
+  /** Older completed jobs closed without a fetch, newest-wins (section 18). */
+  jobsSuperseded: number;
+  /** Still running at Oxylabs; left alone for the next pass. */
+  jobsPending: number;
+  /** Failed at Oxylabs; closed so they are not retried forever. */
+  jobsFaulted: number;
+};
+
+/** The summary object `runCronPipeline` logs and returns. */
+export type CronPipelineSummary = {
+  status: ScrapeStatus;
+  runId: string;
+  /** Step one. Null when it threw before producing a summary. */
+  processing: ScheduledProcessingSummary | null;
+  processingError: string | null;
+  /** Step two. Runs even when step one failed (section 18 rule 6). */
+  analysis: AnalyzeSummary | null;
+  analysisError: string | null;
+  durationMs: number;
+};

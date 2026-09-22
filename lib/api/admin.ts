@@ -1,7 +1,8 @@
 import "server-only";
 
-import { timingSafeEqual } from "node:crypto";
 import { NextResponse } from "next/server";
+
+import { secretsMatch } from "@/lib/api/secrets";
 
 /**
  * The shared admin secret guard (AGENTS.md section 15).
@@ -12,18 +13,6 @@ import { NextResponse } from "next/server";
  */
 
 const HEADER_NAME = "x-biasly-admin-secret";
-
-/** Constant-time compare that does not leak the expected length via timing. */
-function secretsMatch(provided: string, expected: string): boolean {
-  const providedBytes = Buffer.from(provided, "utf8");
-  const expectedBytes = Buffer.from(expected, "utf8");
-
-  // timingSafeEqual throws on a length mismatch, so the lengths are compared
-  // first. A wrong length is already a wrong secret.
-  if (providedBytes.length !== expectedBytes.length) return false;
-
-  return timingSafeEqual(providedBytes, expectedBytes);
-}
 
 /**
  * Returns a response to send when the caller is not authorised, or null when

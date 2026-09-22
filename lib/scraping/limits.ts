@@ -138,3 +138,59 @@ export function toParserStrategy(value: string | null): ParserStrategy | null {
 
   return null;
 }
+
+/* -------------------------------------------------------------------------
+ * Oxylabs Scheduler and the automatic hourly pipeline (AGENTS.md section 18)
+ * ------------------------------------------------------------------------- */
+
+/**
+ * The cron Oxylabs itself runs on: the top of every hour.
+ *
+ * Section 18: "Use Oxylabs Scheduler to run hourly scraping for active source
+ * homepages stored in Supabase."
+ */
+export const SCHEDULE_CRON_EXPRESSION = "0 * * * *";
+
+/**
+ * The cron Vercel calls `/api/cron/pipeline` on - 15 minutes after Oxylabs
+ * starts, so its jobs have time to finish (section 18).
+ *
+ * This must stay equal to the `schedule` in `vercel.json`; the constant exists
+ * so the value is named in one place and can be reported by the sync route.
+ */
+export const CRON_PIPELINE_SCHEDULE = "15 * * * *";
+
+/**
+ * How far out a created schedule's required `end_time` is set.
+ *
+ * The Oxylabs create call rejects a payload without `end_time`, so it is
+ * computed rather than configured. Re-running the sync route does not extend an
+ * existing schedule - this is a create-time value only.
+ */
+export const SCHEDULE_END_TIME_YEARS = 5;
+
+/** Client timeout for a Scheduler control-plane call - small JSON, not a page. */
+export const OXYLABS_SCHEDULER_TIMEOUT_MS = 30_000;
+
+/** Client timeout for pulling a job result, which carries a whole homepage. */
+export const OXYLABS_RESULT_TIMEOUT_MS = 60_000;
+
+/**
+ * Completed jobs processed per schedule per pass.
+ *
+ * Oxylabs produces one job per schedule per hour and the cron runs hourly, so
+ * the steady state is exactly one. A backlog only appears after a fresh sync or
+ * a missed cron, and fetching every stale job would re-scrape the same homepage
+ * for link sets dedupe throws away - at Oxylabs' expense. The newest job is
+ * processed and older unprocessed ones are marked superseded.
+ */
+export const MAX_JOBS_PER_SCHEDULE_PER_RUN = 1;
+
+/**
+ * Most recent jobs examined per schedule when looking for completed results.
+ *
+ * Applied after the schedule's jobs are flattened and sorted newest-first, so
+ * it is a window on the newest jobs rather than on whatever order Oxylabs
+ * returned its runs in.
+ */
+export const MAX_RUNS_LOOKBACK = 20;
