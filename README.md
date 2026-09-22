@@ -1,36 +1,65 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# biasly
 
-## Getting Started
+AI-powered news analysis. biasly scrapes real news articles, analyzes them with AI, and shows the sentiment, political framing, and bias breakdown behind each story.
 
-First, run the development server:
+## What it does
+
+- Scrapes articles from configured news sources (Oxylabs Web Scraper API)
+- Analyzes each article with OpenAI: neutral summary, sentiment, left/center/right framing, confidence, loaded terms
+- Stores everything in Supabase
+- Shows news cards on the home page and a full analysis on each article page
+- Finds related articles using pgvector similarity search
+- Runs the whole pipeline automatically on a schedule (Oxylabs Scheduler + Vercel Cron)
+
+## Tech stack
+
+Next.js · TypeScript · Tailwind CSS · shadcn/ui · Clerk · Supabase (Postgres + pgvector) · Oxylabs · Vercel AI SDK + OpenAI · Zod · PostHog
+
+## Getting started
 
 ```bash
+npm install
+cp .env.example .env.local   # fill in your keys
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+Run the SQL in `supabase/schema.sql` in your Supabase project, enable the `vector` extension, and add at least one active row to the `sources` table.
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## API routes
 
-## Learn More
+All action routes require the `x-biasly-admin-secret` header.
 
-To learn more about Next.js, take a look at the following resources:
+| Route | Method | What it does |
+| --- | --- | --- |
+| `/api/scrape` | POST | Scrape active sources and insert new articles |
+| `/api/analyze` | POST | Run AI analysis + embeddings on pending articles |
+| `/api/sources` | GET | List sources |
+| `/api/oxylabs/schedules` | POST / GET | Create or list hourly Oxylabs schedules |
+| `/api/oxylabs/runs` | GET | List scheduler runs |
+| `/api/oxylabs/scheduled-results/process` | POST | Process completed scheduler results |
+| `/api/cron/pipeline` | GET | Internal — Vercel Cron only, protected by `CRON_SECRET` |
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Example:
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```bash
+curl -X POST http://localhost:3000/api/scrape \
+  -H "x-biasly-admin-secret: $BIASLY_ADMIN_SECRET" \
+  -H "content-type: application/json" \
+  -d '{"limitPerSource": 5}'
+```
 
-## Deploy on Vercel
+Watch the `npm run dev` terminal — scrape and analysis progress is logged there.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Checks
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+```bash
+npm run typecheck
+npm run lint
+npm run build
+```
+
+## Disclaimer
+
+Political framing scores are **AI-estimated**, not objective truth. Treat them as a starting point, not a verdict.
