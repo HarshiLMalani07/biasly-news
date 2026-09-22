@@ -1,11 +1,13 @@
 import type { ReactNode } from "react";
-import { Info } from "lucide-react";
 import { Card } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 
 export type AnalysisCardProps = {
   title: string;
   /** Describes what the card shows; carried by the card's info marker. */
   infoLabel: string;
+  /** Richer hover explanation for the marker. Falls back to `infoLabel`. */
+  infoContent?: ReactNode;
   children: ReactNode;
   footer?: ReactNode;
 };
@@ -18,6 +20,7 @@ export type AnalysisCardProps = {
 export function AnalysisCard({
   title,
   infoLabel,
+  infoContent,
   children,
   footer,
 }: AnalysisCardProps) {
@@ -25,14 +28,7 @@ export function AnalysisCard({
     <Card className="gap-4">
       <div className="flex items-center justify-between gap-2">
         <h2 className="text-card-title text-text-primary">{title}</h2>
-        <span
-          role="img"
-          aria-label={infoLabel}
-          title={infoLabel}
-          className="text-text-secondary"
-        >
-          <Info size={16} strokeWidth={2} aria-hidden />
-        </span>
+        <InfoTooltip label={infoLabel}>{infoContent}</InfoTooltip>
       </div>
 
       {children}

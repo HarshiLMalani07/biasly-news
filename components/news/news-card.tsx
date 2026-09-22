@@ -1,7 +1,8 @@
 import Image from "next/image";
-import { Info } from "lucide-react";
 import { cn } from "cn";
+import { BiasExplainer } from "@/components/bias/bias-explainer";
 import { BiasMeter } from "@/components/bias/bias-meter";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { FeedArticle } from "@/lib/articles/view-models";
 
 export type NewsCardProps = {
@@ -22,7 +23,7 @@ const titleCase = (value: string): string =>
 export function NewsCard({ article, priority = false, className }: NewsCardProps) {
   const confidencePercent = Math.round(article.confidence * 100);
 
-  const analysisSummary = `AI-estimated framing: ${article.framingLabel} · Sentiment: ${article.sentimentLabel} · Confidence ${confidencePercent}%`;
+  const analysisSummary = `AI-estimated framing: ${titleCase(article.framingLabel)} · Sentiment: ${titleCase(article.sentimentLabel)} · Confidence ${confidencePercent}%`;
 
   return (
     <article
@@ -41,14 +42,22 @@ export function NewsCard({ article, priority = false, className }: NewsCardProps
           sizes="(min-width: 1280px) 395px, (min-width: 1024px) 31vw, (min-width: 640px) 47vw, 100vw"
           className="object-cover"
         />
-        <span
-          title={analysisSummary}
-          aria-label={analysisSummary}
-          role="img"
-          className="absolute top-3 right-3 inline-flex size-7 items-center justify-center rounded-full bg-bg-primary/95 text-text-primary shadow-sm"
+        {/* focusable={false}: the whole card is a link, and a button nested
+            in an anchor is invalid markup. */}
+        <InfoTooltip
+          label={analysisSummary}
+          size={14}
+          focusable={false}
+          side="bottom"
+          className="absolute top-3 right-3 size-7 bg-bg-primary/95 text-text-primary shadow-sm hover:text-text-primary"
         >
-          <Info size={14} strokeWidth={2} aria-hidden />
-        </span>
+          <div className="flex flex-col gap-2">
+            <p className="text-caption font-semibold text-text-primary">
+              {analysisSummary}
+            </p>
+            <BiasExplainer />
+          </div>
+        </InfoTooltip>
       </div>
 
       <div className="flex flex-1 flex-col p-4">

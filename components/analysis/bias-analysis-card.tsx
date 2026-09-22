@@ -1,5 +1,6 @@
 import { AnalysisCard } from "@/components/analysis/analysis-card";
 import { BiasBreakdownRow } from "@/components/analysis/bias-breakdown-row";
+import { BiasExplainer } from "@/components/bias/bias-explainer";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { normalizeBiasPercentages } from "@/lib/bias";
@@ -57,6 +58,7 @@ export function BiasAnalysisCard({ article }: BiasAnalysisCardProps) {
     <AnalysisCard
       title="Bias Analysis"
       infoLabel="How the sources covering this story lean, estimated by AI from the article text."
+      infoContent={<BiasExplainer />}
       footer={
         <Button variant="secondary" className="w-full">
           How We Analyze Bias

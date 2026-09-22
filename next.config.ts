@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  devIndicators: false,
+
   images: {
     remotePatterns: [
       // The design-system sheet's demo photography.

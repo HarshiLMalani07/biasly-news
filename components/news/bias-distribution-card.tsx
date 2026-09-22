@@ -1,6 +1,7 @@
-import { Info } from "lucide-react";
+import { BiasExplainer } from "@/components/bias/bias-explainer";
 import { BiasMeter } from "@/components/bias/bias-meter";
 import { Card } from "@/components/ui/card";
+import { InfoTooltip } from "@/components/ui/info-tooltip";
 import type { BiasPercentages } from "@/lib/bias";
 
 export type BiasDistributionCardProps = {
@@ -22,18 +23,13 @@ export function BiasDistributionCard({
 
   return (
     <Card className="mt-6 gap-3">
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-2">
         <h2 className="text-body-sm font-semibold text-text-primary">
           Bias Distribution
         </h2>
-        <span
-          role="img"
-          aria-label={infoLabel}
-          title={infoLabel}
-          className="text-text-secondary"
-        >
-          <Info size={14} strokeWidth={2} aria-hidden />
-        </span>
+        <InfoTooltip label={infoLabel} size={14}>
+          <BiasExplainer />
+        </InfoTooltip>
       </div>
 
       <BiasMeter

@@ -40,6 +40,11 @@
   --color-border: #e5e7eb;
   --color-divider: #e5e7eb;
 
+  /* Floating layers (tooltips). White reads as lifted over the grey page and
+     over a card's shadow; the dark palette lightens it instead, because a card
+     and the page are already near-black there. */
+  --color-overlay: #ffffff;
+
   /* Colors - inverted bars (utility bar, footer, inverted wordmark). These stay
      dark in both themes, so they cannot be derived from the text/bg pair - that
      pair swaps under dark and would turn the bars white. */
@@ -135,6 +140,9 @@
   --color-bg-secondary: #17171a;
   --color-border: #2a2a30;
   --color-divider: #2a2a30;
+
+  /* Lifted above the card it floats over, not level with it. */
+  --color-overlay: #1c1c20;
 
   /* Inverted bars stay the darkest surfaces on the page. */
   --color-inverse-surface: #08080a;

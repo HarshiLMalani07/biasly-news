@@ -13,7 +13,9 @@ import { Slot } from "radix-ui";
 const buttonVariants = cva(
   [
     "inline-flex shrink-0 items-center justify-center gap-2 whitespace-nowrap",
-    "rounded-md font-medium transition-colors outline-none select-none",
+    // Tailwind v4 preflight sets buttons to cursor-default; a control that
+    // looks clickable should read as clickable. disabled: wins on specificity.
+    "cursor-pointer rounded-md font-medium transition-colors outline-none select-none",
     "focus-visible:ring-2 focus-visible:ring-text-primary/30 focus-visible:ring-offset-2 focus-visible:ring-offset-bg-primary",
     "disabled:pointer-events-none disabled:cursor-not-allowed",
     "disabled:border-border disabled:bg-bg-secondary disabled:text-text-secondary/60 disabled:shadow-none",
