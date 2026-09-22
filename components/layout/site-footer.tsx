@@ -26,22 +26,26 @@ const socialLinks = [
   { name: "YouTube", Icon: YouTubeIcon },
 ] as const;
 
-/** Dark site footer. Every link is a placeholder until those pages exist. */
+/**
+ * Dark site footer. Stays inverted in both themes, so it paints from the
+ * inverse tokens rather than the text/bg pair, which swaps under dark.
+ * Every link is a placeholder until those pages exist.
+ */
 export function SiteFooter() {
   return (
-    <footer className="mt-auto bg-text-primary">
+    <footer className="mt-auto bg-inverse-surface">
       <div className="container-biasly py-10">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           <div>
             <Logo size="sm" inverted />
-            <p className="text-body-sm mt-4 max-w-40 text-bg-primary/60">
+            <p className="text-body-sm mt-4 max-w-40 text-inverse-text/60">
               Balanced news coverage powered by AI.
             </p>
           </div>
 
           {footerColumns.map((column) => (
             <div key={column.heading}>
-              <h2 className="text-body-sm font-semibold text-bg-primary">
+              <h2 className="text-body-sm font-semibold text-inverse-text">
                 {column.heading}
               </h2>
               <ul className="mt-4 flex flex-col gap-2">
@@ -49,7 +53,7 @@ export function SiteFooter() {
                   <li key={link}>
                     <a
                       href="#"
-                      className="text-body-sm text-bg-primary/60 transition-colors hover:text-bg-primary"
+                      className="text-body-sm text-inverse-text/60 transition-colors hover:text-inverse-text"
                     >
                       {link}
                     </a>
@@ -60,7 +64,7 @@ export function SiteFooter() {
           ))}
 
           <div>
-            <h2 className="text-body-sm font-semibold text-bg-primary">
+            <h2 className="text-body-sm font-semibold text-inverse-text">
               Connect
             </h2>
             <ul className="mt-4 flex items-center gap-4">
@@ -69,7 +73,7 @@ export function SiteFooter() {
                   <a
                     href="#"
                     aria-label={`biasly News on ${name}`}
-                    className="inline-flex text-bg-primary/70 transition-colors hover:text-bg-primary"
+                    className="inline-flex text-inverse-text/70 transition-colors hover:text-inverse-text"
                   >
                     <Icon className="size-[18px]" />
                   </a>
@@ -79,8 +83,8 @@ export function SiteFooter() {
           </div>
         </div>
 
-        <div className="mt-10 border-t border-bg-primary/10 pt-6">
-          <p className="text-caption text-bg-primary/50">
+        <div className="mt-10 border-t border-inverse-text/10 pt-6">
+          <p className="text-caption text-inverse-text/50">
             &copy; 2026 Biasly News. All rights reserved.
           </p>
         </div>

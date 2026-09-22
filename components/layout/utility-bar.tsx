@@ -1,6 +1,5 @@
 import { ChevronDown, Globe } from "lucide-react";
-
-const themeOptions = ["Light", "Dark", "Auto"] as const;
+import { ThemeSwitch } from "@/components/theme/theme-switch";
 
 /** Rendered server-side, so it reflects render time rather than the viewer's clock. */
 function formatToday(): string {
@@ -11,43 +10,39 @@ function formatToday(): string {
 }
 
 /**
- * The thin near-black strip above the masthead. Presentational only: the theme
- * switch and edition picker are static labels until those features exist.
+ * The thin near-black strip above the masthead. Stays inverted in both themes,
+ * so it paints from the inverse tokens. The theme switch is the one live
+ * control here - the edition picker and location are static until those
+ * features exist - and it stays visible at every width, since it is the only
+ * way to change the theme.
  */
 export function UtilityBar() {
   return (
-    <div className="bg-text-primary">
-      <div className="container-biasly flex h-9 items-center justify-between">
-        <div className="hidden items-center gap-6 md:flex">
-          <span className="text-caption text-bg-primary/70">
+    <div className="bg-inverse-surface">
+      <div className="container-biasly flex h-9 items-center justify-between gap-4">
+        <div className="flex items-center gap-6">
+          <span className="text-caption hidden text-inverse-text/70 md:inline">
             Browser Extension
           </span>
 
           <div className="flex items-center gap-2">
-            <span className="text-caption text-bg-primary/70">Theme:</span>
-            {themeOptions.map((option) => (
-              <span
-                key={option}
-                className={
-                  option === "Light"
-                    ? "text-caption font-semibold text-bg-primary"
-                    : "text-caption text-bg-primary/60"
-                }
-              >
-                {option}
-              </span>
-            ))}
+            {/* Dropped below sm so the switch and the date share 375px without
+                overflowing the bar. */}
+            <span className="text-caption hidden text-inverse-text/70 sm:inline">
+              Theme:
+            </span>
+            <ThemeSwitch />
           </div>
         </div>
 
         <div className="ml-auto flex items-center gap-6">
-          <span className="text-caption text-bg-primary/70">
+          <span className="text-caption text-inverse-text/70">
             {formatToday()}
           </span>
-          <span className="hidden text-caption text-bg-primary/70 sm:inline">
+          <span className="text-caption hidden text-inverse-text/70 sm:inline">
             Set Location
           </span>
-          <span className="hidden items-center gap-1.5 text-caption text-bg-primary sm:inline-flex">
+          <span className="text-caption hidden items-center gap-1.5 text-inverse-text sm:inline-flex">
             <Globe size={12} strokeWidth={2} aria-hidden />
             International Edition
             <ChevronDown size={12} strokeWidth={2} aria-hidden />

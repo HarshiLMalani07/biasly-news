@@ -9,7 +9,10 @@
    biasly Design System v1.0
    Tokens are emitted onto :root so they are inspectable in DevTools and usable
    as Tailwind utilities (bg-surface, text-text-secondary, shadow-md, ...).
-   Light theme only - the design system defines a single palette.
+   Two palettes: the light values below are the design system's, and the
+   :root.dark block near the bottom redefines the switchable ones. Every
+   utility compiles to var(--color-*), so nothing outside this file needs a
+   dark: variant.
 --------------------------------------------------------------------------- */
 
 @theme {
@@ -27,12 +30,24 @@
   --color-bias-left: #b42318;
   --color-bias-center: #e5e7eb;
   --color-bias-right: #1d4ed8;
+  /* Labels printed on the filled bias segments. White in both themes - it sits
+     on the fill, never on the page background. */
+  --color-bias-foreground: #ffffff;
 
   /* Colors - neutrals */
   --color-bg-primary: #ffffff;
   --color-bg-secondary: #f0f0f0;
   --color-border: #e5e7eb;
   --color-divider: #e5e7eb;
+
+  /* Colors - inverted bars (utility bar, footer, inverted wordmark). These stay
+     dark in both themes, so they cannot be derived from the text/bg pair - that
+     pair swaps under dark and would turn the bars white. */
+  --color-inverse-surface: #0d0d0f;
+  --color-inverse-text: #ffffff;
+
+  /* Hover fill for the primary button, whose base is the text colour. */
+  --color-button-primary-hover: #000000;
 
   /* Shadows */
   --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.05);
@@ -73,6 +88,8 @@
 }
 
 :root {
+  color-scheme: light;
+
   --background: var(--color-bg-primary);
   --foreground: var(--color-text-primary);
   --card: var(--color-bg-primary);
@@ -91,6 +108,43 @@
   --input: var(--color-border);
   --ring: var(--color-text-primary);
   --radius: 12px;
+}
+
+/* Dark palette. Redefining the tokens on <html> re-themes every utility, so no
+   component carries dark: styling. `:root.dark` (0,2,0) outranks the :root rule
+   @theme emits whatever order Tailwind writes them in. The shadcn aliases above
+   are var(--color-*) references declared on this same element, so they
+   re-resolve to these values on their own. The class is set by the inline
+   script in app/layout.tsx, before first paint. */
+:root.dark {
+  color-scheme: dark;
+
+  /* Primary */
+  --color-text-primary: #f5f5f7;
+  --color-text-secondary: #a1a1aa;
+  --color-surface: #131316;
+
+  /* Semantic (political framing) - same hues, lifted enough to carry white
+     labels at ~5:1 on a dark page. */
+  --color-bias-left: #c4362b;
+  --color-bias-center: #3f3f46;
+  --color-bias-right: #2563eb;
+
+  /* Neutrals */
+  --color-bg-primary: #0d0d0f;
+  --color-bg-secondary: #17171a;
+  --color-border: #2a2a30;
+  --color-divider: #2a2a30;
+
+  /* Inverted bars stay the darkest surfaces on the page. */
+  --color-inverse-surface: #08080a;
+  --color-inverse-text: #f5f5f7;
+
+  --color-button-primary-hover: #e4e4e7;
+
+  /* No --shadow-* overrides: Tailwind v4 inlines the literal shadow value into
+     the utility instead of emitting var(--shadow-*), so redefining the token
+     here would do nothing. Dark surfaces separate by border instead. */
 }
 
 @layer base {

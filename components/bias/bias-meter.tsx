@@ -41,7 +41,7 @@ export function BiasMeter({
       // still spells all three out.
       label: `${isFull ? "Left" : "L"} ${pct.left}%`,
       value: pct.left,
-      className: "bg-bias-left text-bg-primary",
+      className: "bg-bias-left text-bias-foreground",
     },
     {
       key: "center",
@@ -53,7 +53,7 @@ export function BiasMeter({
       key: "right",
       label: `Right ${pct.right}%`,
       value: pct.right,
-      className: "bg-bias-right text-bg-primary",
+      className: "bg-bias-right text-bias-foreground",
     },
   ];
 

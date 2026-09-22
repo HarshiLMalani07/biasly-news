@@ -16,7 +16,7 @@ const subMarkSize: Record<LogoSize, string> = {
 
 export type LogoProps = {
   size?: LogoSize;
-  /** White treatment for the dark footer bar. */
+  /** Treatment for the inverted bars (utility bar, footer), in both themes. */
   inverted?: boolean;
   className?: string;
 };
@@ -30,7 +30,7 @@ export function Logo({ size = "md", inverted = false, className }: LogoProps) {
     <span
       className={cn(
         "inline-flex flex-col items-end",
-        inverted ? "text-bg-primary" : "text-text-primary",
+        inverted ? "text-inverse-text" : "text-text-primary",
         className
       )}
     >

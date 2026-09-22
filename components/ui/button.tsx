@@ -24,8 +24,8 @@ const buttonVariants = cva(
       variant: {
         primary: [
           "border border-transparent bg-text-primary text-bg-primary",
-          "hover:bg-black hover:shadow-sm",
-          "data-[hover=true]:bg-black data-[hover=true]:shadow-sm",
+          "hover:bg-button-primary-hover hover:shadow-sm",
+          "data-[hover=true]:bg-button-primary-hover data-[hover=true]:shadow-sm",
         ],
         secondary: [
           "border border-border bg-bg-primary text-text-primary",
