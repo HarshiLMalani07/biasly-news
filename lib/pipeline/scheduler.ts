@@ -32,6 +32,7 @@ import {
   SOURCE_CONCURRENCY,
 } from "@/lib/scraping/limits";
 import {
+  deleteSchedule,
   getSchedules,
   getSchedulesWithSources,
   getUnprocessedRuns,
@@ -94,6 +95,7 @@ export async function syncSchedules(): Promise<SyncSchedulesSummary> {
   let activeSources = 0;
   let schedulesCreated = 0;
   let schedulesExisting = 0;
+  let schedulesRecreated = 0;
   let schedulesDeactivated = 0;
   let orphansDeactivated = 0;
 
@@ -106,6 +108,7 @@ export async function syncSchedules(): Promise<SyncSchedulesSummary> {
       activeSources,
       schedulesCreated,
       schedulesExisting,
+      schedulesRecreated,
       schedulesDeactivated,
       orphansDeactivated,
       durationMs: Date.now() - startedAt,
@@ -142,10 +145,63 @@ export async function syncSchedules(): Promise<SyncSchedulesSummary> {
   // 1-2. One schedule per active source. Sequential on purpose: creating
   // schedules is a billing action, and a burst of parallel creates is exactly
   // the shape that produces duplicates if one call is retried.
+  /** Creates the Oxylabs schedule for one source and stores its row. */
+  async function createFor(source: SourceRow): Promise<string> {
+    const scheduleId = await createSchedule({
+      cron: SCHEDULE_CRON_EXPRESSION,
+      items: [scheduleItemFor(source)],
+      endTime: formatEndTime(endTime),
+    });
+
+    await insertSchedule({
+      sourceId: source.id,
+      scheduleId,
+      cronExpression: SCHEDULE_CRON_EXPRESSION,
+    });
+
+    return scheduleId;
+  }
+
   for (const source of sources) {
     const existing = bySourceId.get(source.id);
 
     if (existing) {
+      // A stored schedule whose cron no longer matches the configured one has
+      // to be replaced: Oxylabs exposes no way to change a schedule's cron,
+      // only to switch it on or off. Without this, changing
+      // SCHEDULE_CRON_EXPRESSION would leave every existing schedule running
+      // on the old cadence for ever - and still billing for it.
+      if (existing.cron_expression !== SCHEDULE_CRON_EXPRESSION) {
+        try {
+          await setScheduleState(existing.schedule_id, false);
+          await deleteSchedule(existing.schedule_id);
+
+          const scheduleId = await createFor(source);
+
+          schedulesRecreated += 1;
+          schedules.push({
+            source: source.name,
+            scheduleId,
+            cron: SCHEDULE_CRON_EXPRESSION,
+            created: true,
+          });
+          log.info(`Schedule recreated on a new cron: ${source.name}`, {
+            previousScheduleId: existing.schedule_id,
+            previousCron: existing.cron_expression,
+            scheduleId,
+            cron: SCHEDULE_CRON_EXPRESSION,
+          });
+        } catch (error) {
+          const message = messageOf(error);
+          errors.push({ scope: source.name, message });
+          log.error(`Schedule recreation failed: ${source.name}`, {
+            reason: message,
+          });
+        }
+
+        continue;
+      }
+
       try {
         await touchSchedule(existing.schedule_id);
         schedulesExisting += 1;
@@ -170,17 +226,7 @@ export async function syncSchedules(): Promise<SyncSchedulesSummary> {
     }
 
     try {
-      const scheduleId = await createSchedule({
-        cron: SCHEDULE_CRON_EXPRESSION,
-        items: [scheduleItemFor(source)],
-        endTime: formatEndTime(endTime),
-      });
-
-      await insertSchedule({
-        sourceId: source.id,
-        scheduleId,
-        cronExpression: SCHEDULE_CRON_EXPRESSION,
-      });
+      const scheduleId = await createFor(source);
 
       schedulesCreated += 1;
       schedules.push({

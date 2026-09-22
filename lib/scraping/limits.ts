@@ -144,21 +144,39 @@ export function toParserStrategy(value: string | null): ParserStrategy | null {
  * ------------------------------------------------------------------------- */
 
 /**
- * The cron Oxylabs itself runs on: the top of every hour.
+ * The cron Oxylabs itself runs on: once a day at 11:00 UTC.
  *
- * Section 18: "Use Oxylabs Scheduler to run hourly scraping for active source
- * homepages stored in Supabase."
+ * AGENTS.md section 18 specifies hourly (`0 * * * *`), and that is what this
+ * was. It is daily because Vercel's Hobby plan refuses to deploy a cron that
+ * runs more than once per day - "Hobby accounts are limited to daily cron
+ * jobs. This cron expression would run more than once per day." - so an hourly
+ * Oxylabs schedule would produce 24 jobs per source per day that nothing could
+ * collect. Oxylabs bills per job, so the two sides are kept in step.
+ *
+ * 11:00 UTC is 07:00 US Eastern: the US morning news cycle is up, so a single
+ * daily pass sees a fresh homepage rather than overnight leftovers.
+ *
+ * On a Pro plan, set this back to `0 * * * *` and `CRON_PIPELINE_SCHEDULE` to
+ * `15 * * * *`, then re-run `POST /api/oxylabs/schedules`, which recreates any
+ * schedule whose cron has drifted.
  */
-export const SCHEDULE_CRON_EXPRESSION = "0 * * * *";
+export const SCHEDULE_CRON_EXPRESSION = "0 11 * * *";
 
 /**
- * The cron Vercel calls `/api/cron/pipeline` on - 15 minutes after Oxylabs
- * starts, so its jobs have time to finish (section 18).
+ * The cron Vercel calls `/api/cron/pipeline` on: a full hour after Oxylabs
+ * starts.
+ *
+ * Section 18 asks for a 15-minute gap, which is right on Pro. It is an hour
+ * here because Hobby's scheduling precision is per-hour: a job set to `0 12 *
+ * * *` fires anywhere between 12:00 and 12:59. A 15-minute offset would
+ * therefore guarantee nothing - Vercel could fire before Oxylabs had even
+ * started. One clear hour means the worst case still leaves Oxylabs a full
+ * hour to finish, and the best case two.
  *
  * This must stay equal to the `schedule` in `vercel.json`; the constant exists
  * so the value is named in one place and can be reported by the sync route.
  */
-export const CRON_PIPELINE_SCHEDULE = "15 * * * *";
+export const CRON_PIPELINE_SCHEDULE = "0 12 * * *";
 
 /**
  * How far out a created schedule's required `end_time` is set.
@@ -178,7 +196,7 @@ export const OXYLABS_RESULT_TIMEOUT_MS = 60_000;
 /**
  * Completed jobs processed per schedule per pass.
  *
- * Oxylabs produces one job per schedule per hour and the cron runs hourly, so
+ * Oxylabs produces one job per schedule per day and the cron runs daily, so
  * the steady state is exactly one. A backlog only appears after a fresh sync or
  * a missed cron, and fetching every stale job would re-scrape the same homepage
  * for link sets dedupe throws away - at Oxylabs' expense. The newest job is

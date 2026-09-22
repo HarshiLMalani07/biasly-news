@@ -176,10 +176,26 @@ scheduled HTML matches manual HTML. `render` is **not** set: scheduled runs
 cannot be retried with rendering, and all five seeded sources server-render
 their markup.
 
-**D4 — Oxylabs cron `0 * * * *`, Vercel cron `15 * * * *`.** Section 18: Oxylabs
-runs at the top of the hour, Vercel fires 15 minutes later to give Oxylabs time
-to finish. Both live in `lib/scraping/limits.ts` as named constants, not magic
-strings in a route.
+**D4 — Oxylabs cron `0 11 * * *`, Vercel cron `0 12 * * *` (revised).** Section
+18 specifies hourly Oxylabs runs with the Vercel cron 15 minutes behind, and
+that is what shipped first. It was revised after deployment failed: Vercel's
+Hobby plan refuses any cron running more than once per day. Two Hobby limits
+drove the new values, both from
+`https://vercel.com/docs/cron-jobs/usage-and-pricing`:
+
+- *Minimum interval: once per day.* `15 * * * *` fails deployment outright, so
+  both sides move to daily. Oxylabs is moved too, not just Vercel: an hourly
+  Oxylabs schedule with a daily collector would bill for 24 jobs per source per
+  day and discard 23 of them.
+- *Scheduling precision: per-hour (±59 min).* A Hobby cron set to `0 12 * * *`
+  fires anywhere in 12:00-12:59, so section 18's 15-minute offset would
+  guarantee nothing - Vercel could fire before Oxylabs started. The gap is a
+  full hour instead: worst case still leaves Oxylabs an hour, best case two.
+
+11:00 UTC is 07:00 US Eastern, so the single daily pass sees a fresh homepage.
+Both values stay named constants in `lib/scraping/limits.ts`. On Pro, restore
+`0 * * * *` / `15 * * * *` and re-run the sync route, which now recreates any
+schedule whose cron has drifted (D16).
 
 **D5 — `end_time` is required by the API, so it is computed, not configured.**
 `SCHEDULE_END_TIME_YEARS = 5` from creation time, formatted as UTC
@@ -235,15 +251,23 @@ one in its own try/catch, records the error into the summary, and then runs
 `runAnalysis({})` regardless. Only a failure of *both* steps makes the route
 answer `500`.
 
-**D12 — Vercel Hobby cannot run `15 * * * *`.** Verified in the live Vercel docs:
-on Hobby, cron jobs "can only run once per day. Expressions that run more
-frequently will fail deployment." AGENTS.md section 18 mandates hourly at `:15`,
-so `vercel.json` ships `15 * * * *` as specified. **This is a deploy-time
-constraint the user must know about**: the project needs a Pro team for the
-hourly schedule, or `vercel.json` must be dropped to a daily expression such as
-`15 9 * * *` on Hobby. Called out in the delivery notes, not silently worked
-around. The Scheduler, both manual routes and local cron testing are entirely
-unaffected by this.
+**D12 — Vercel Hobby cannot run `15 * * * *`. (Confirmed in practice.)** The
+live Vercel docs said Hobby crons "can only run once per day. Expressions that
+run more frequently will fail deployment", and the deployment did fail with
+exactly that error. Resolved by D4 rather than by upgrading the plan: the
+project stays on the free tier and both crons run daily.
+
+**D16 — Cron drift is reconciled by recreating the schedule.** Changing
+`SCHEDULE_CRON_EXPRESSION` does nothing to schedules that already exist, and
+Oxylabs exposes no endpoint for editing a schedule's cron - only
+`PUT /state`. So when a stored row's `cron_expression` differs from the
+configured one, the sync route deactivates the old Oxylabs schedule, deletes
+its row and creates a replacement, reporting the count as
+`schedulesRecreated`. The row is deleted rather than kept because
+`oxylabs_schedules.source_id` is unique, so a source cannot hold two rows; the
+retired schedule's `oxylabs_schedule_runs` history cascades away with it, which
+is correct - it describes a schedule that no longer exists. Without this,
+switching to a daily cadence would leave five schedules billing hourly for ever.
 
 **D13 — Read routes carry no admin secret.** `GET /api/oxylabs/schedules` and
 `GET /api/oxylabs/runs` follow `GET /api/sources`: read-only, no secret,

@@ -157,6 +157,8 @@ export type SyncSchedulesSummary = {
   activeSources: number;
   schedulesCreated: number;
   schedulesExisting: number;
+  /** Schedules retired and recreated because their cron no longer matched. */
+  schedulesRecreated: number;
   /** Schedules switched off because their source is no longer active. */
   schedulesDeactivated: number;
   /** Oxylabs schedules with no DB row, switched off by the orphan sweep. */

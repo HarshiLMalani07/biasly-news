@@ -136,6 +136,29 @@ export async function setScheduleRowActive(
 }
 
 /**
+ * Removes a stored schedule row.
+ *
+ * Used when a schedule's cron has drifted from `SCHEDULE_CRON_EXPRESSION`.
+ * Oxylabs has no endpoint for changing a schedule's cron - only `/state` -
+ * so the only way to rewrite one is to retire it and create a replacement.
+ *
+ * `oxylabs_schedule_runs.schedule_id` cascades on delete, so the retired
+ * schedule's job history goes with it. That history describes a schedule that
+ * no longer exists, and `source_id` is unique on this table, so the row cannot
+ * simply be kept alongside its replacement.
+ */
+export async function deleteSchedule(scheduleId: string): Promise<void> {
+  const supabase = getServiceRoleClient();
+
+  const { error } = await supabase
+    .from("oxylabs_schedules")
+    .delete()
+    .eq("schedule_id", scheduleId);
+
+  if (error) throw new Error(`deleteSchedule: ${error.message}`);
+}
+
+/**
  * Records one job of a scheduled run, or refreshes its status.
  *
  * Upserts on the existing `(schedule_id, job_id)` unique constraint. Only the
