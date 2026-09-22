@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai/limits";
 import { requireAdminSecret } from "@/lib/api/admin";
 import { runAnalysis } from "@/lib/pipeline/analyze";
+import { getPostHogClient } from "@/lib/posthog-server";
 
 /**
  * POST /api/analyze - AI article analysis (AGENTS.md sections 14 and 19).
@@ -36,6 +37,11 @@ export async function POST(request: NextRequest) {
   const unauthorized = requireAdminSecret(request);
   if (unauthorized) return unauthorized;
 
+  const posthog = getPostHogClient();
+  const distinctId =
+    request.headers.get("x-posthog-distinct-id") ?? "admin_api";
+  const sessionId = request.headers.get("x-posthog-session-id");
+
   // An empty body is valid and means "every pending article" (section 19).
   let raw: unknown = {};
 
@@ -58,10 +64,31 @@ export async function POST(request: NextRequest) {
   try {
     const summary = await runAnalysis(parsed.data);
 
+    posthog?.capture({
+      distinctId,
+      event: "analysis_run_completed",
+      properties: {
+        status: summary.status,
+        analyzed: summary.analyzed,
+        skipped: summary.skipped,
+        failed: summary.failed,
+        embedded: summary.embedded,
+        duration_ms: summary.durationMs,
+        ...(sessionId ? { $session_id: sessionId } : {}),
+      },
+    });
+    await posthog?.flush();
+
     return NextResponse.json(summary, {
       status: summary.status === "failed" ? 500 : 200,
     });
   } catch (error) {
+    posthog?.captureException(error, distinctId, {
+      endpoint: "analyze",
+      ...(sessionId ? { $session_id: sessionId } : {}),
+    });
+    await posthog?.flush();
+
     // Details go to the server console; the caller gets a generic message so
     // no credential or stack trace leaves the server (section 21).
     console.error("POST /api/analyze failed:", error);

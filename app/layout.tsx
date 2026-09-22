@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import { ClerkProvider } from "@clerk/nextjs";
 import { shadcn } from "@clerk/ui/themes";
+import { PostHogIdentity } from "@/components/analytics/posthog-identity";
 import "./globals.css";
 
 const poppins = Poppins({
@@ -23,7 +24,10 @@ export default function RootLayout({ children }: LayoutProps<"/">) {
       <body className="min-h-full flex flex-col">
         {/* Clerk's shadcn theme reads the :root variables globals.css already
             re-points at the biasly palette, so Clerk UI inherits our colours. */}
-        <ClerkProvider appearance={{ theme: shadcn }}>{children}</ClerkProvider>
+        <ClerkProvider appearance={{ theme: shadcn }}>
+          <PostHogIdentity />
+          {children}
+        </ClerkProvider>
       </body>
     </html>
   );

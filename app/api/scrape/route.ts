@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireAdminSecret } from "@/lib/api/admin";
 import { runScrape } from "@/lib/pipeline/scrape";
+import { getPostHogClient } from "@/lib/posthog-server";
 import {
   DEFAULT_ARTICLES_PER_SOURCE,
   MAX_ARTICLES_PER_SOURCE,
@@ -40,6 +41,11 @@ export async function POST(request: NextRequest) {
   const unauthorized = requireAdminSecret(request);
   if (unauthorized) return unauthorized;
 
+  const posthog = getPostHogClient();
+  const distinctId =
+    request.headers.get("x-posthog-distinct-id") ?? "admin_api";
+  const sessionId = request.headers.get("x-posthog-session-id");
+
   // An empty body is valid and means "every active source, default depth".
   let raw: unknown = {};
 
@@ -65,10 +71,32 @@ export async function POST(request: NextRequest) {
       perSource: parsed.data.perSource ?? DEFAULT_ARTICLES_PER_SOURCE,
     });
 
+    posthog?.capture({
+      distinctId,
+      event: "scrape_run_completed",
+      properties: {
+        status: summary.status,
+        sources_checked: summary.sourcesChecked,
+        articles_inserted: summary.articlesInserted,
+        articles_rejected: summary.articlesRejected,
+        articles_failed: summary.articlesFailed,
+        duplicates_skipped: summary.duplicatesSkipped,
+        duration_ms: summary.durationMs,
+        ...(sessionId ? { $session_id: sessionId } : {}),
+      },
+    });
+    await posthog?.flush();
+
     return NextResponse.json(summary, {
       status: summary.status === "failed" ? 500 : 200,
     });
   } catch (error) {
+    posthog?.captureException(error, distinctId, {
+      endpoint: "scrape",
+      ...(sessionId ? { $session_id: sessionId } : {}),
+    });
+    await posthog?.flush();
+
     // Details go to the server console; the caller gets a generic message so
     // no credential or stack trace leaves the server (section 21).
     console.error("POST /api/scrape failed:", error);

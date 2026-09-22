@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import posthog from "posthog-js";
 import { useState, useTransition } from "react";
 import { loadFeedPage } from "@/app/_actions/feed";
 import { NewsCard } from "@/components/news/news-card";
@@ -47,7 +48,13 @@ export function TopNewsSection({ initial }: TopNewsSectionProps) {
 
         setPage(next.page);
         setHasMore(next.hasMore);
-      } catch {
+        posthog.capture("feed_page_loaded", {
+          page: next.page,
+          articles_loaded: next.articles.length,
+          has_more: next.hasMore,
+        });
+      } catch (error) {
+        posthog.captureException(error);
         setError("Could not load more articles. Please try again.");
       }
     });
@@ -74,6 +81,15 @@ export function TopNewsSection({ initial }: TopNewsSectionProps) {
                 <Link
                   key={article.id}
                   href={`/news/${article.id}`}
+                  onClick={() =>
+                    posthog.capture("article_selected", {
+                      article_id: article.id,
+                      source_name: article.sourceName,
+                      framing_label: article.framingLabel,
+                      feed_page: page,
+                      position: index + 1,
+                    })
+                  }
                   className="group block h-full rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-text-primary/30 focus-visible:ring-offset-2"
                 >
                   <NewsCard article={article} priority={index < 3} />
