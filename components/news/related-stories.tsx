@@ -6,8 +6,11 @@ export type RelatedStoriesProps = {
 };
 
 /**
- * Stories covering adjacent ground. The demo picks other fixture articles;
- * AGENTS.md section 20 replaces the source with pgvector cosine distance.
+ * Stories covering adjacent ground: up to five articles ordered by pgvector
+ * cosine distance over their analysis embeddings (AGENTS.md section 20).
+ *
+ * An article with no embedding yields an empty list, which is why the section
+ * renders nothing at all rather than an empty heading.
  */
 export function RelatedStories({ articles }: RelatedStoriesProps) {
   if (articles.length === 0) return null;

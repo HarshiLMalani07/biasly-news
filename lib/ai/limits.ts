@@ -78,3 +78,26 @@ export const MIN_ARTICLE_CHARS = 200;
  * is repaired to exactly 100; beyond it, the output is invalid.
  */
 export const PERCENTAGE_TOTAL_TOLERANCE = 2;
+
+/**
+ * The embedding model (AGENTS.md section 20), and the exact dimension count
+ * `article_analyses.embedding vector(1536)` expects.
+ *
+ * Verified against the installed packages rather than from memory, as the
+ * ai-sdk skill requires: `openai.embedding(id)` is the current factory in
+ * `node_modules/@ai-sdk/openai/dist/index.d.ts` (`textEmbeddingModel` is
+ * deprecated there), and `node_modules/@ai-sdk/openai/docs/03-openai.mdx` lists
+ * `text-embedding-3-small` at 1536 dimensions - so no `dimensions` provider
+ * option is needed to match the column.
+ */
+export const EMBEDDING_MODEL = "text-embedding-3-small";
+
+/** Must equal the `vector(N)` width in `supabase/schema.sql`. */
+export const EMBEDDING_DIMENSIONS = 1536;
+
+/**
+ * Article characters sent to the embedding model. Well inside the model's
+ * 8191-token input limit, and enough of a story for two reports of the same
+ * event to land near each other.
+ */
+export const MAX_EMBEDDING_CHARS = 8_000;

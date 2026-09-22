@@ -16,10 +16,18 @@ import type {
  * applied in JavaScript after the query returns (AGENTS.md section 21).
  */
 
+/**
+ * The analysis as the UI reads it. `embedding` is omitted deliberately:
+ * `ANALYSIS_FIELDS` below does not select it - a 1536-dimension vector is
+ * ~20 KB of text per row and nothing rendered needs it - so the type must not
+ * claim a field the query never fetches.
+ */
+export type AnalysisForDisplay = Omit<ArticleAnalysisRow, "embedding">;
+
 /** An article joined to its source and its analysis, as the UI reads it. */
 export type ArticleWithAnalysis = ArticleRow & {
   sources: { name: string; logo_url: string | null } | null;
-  article_analyses: ArticleAnalysisRow | null;
+  article_analyses: AnalysisForDisplay | null;
 };
 
 /** The same row as PostgREST returns it, before embeds are flattened. */
@@ -28,7 +36,7 @@ type RawArticleRow = ArticleRow & {
     | { name: string; logo_url: string | null }
     | { name: string; logo_url: string | null }[]
     | null;
-  article_analyses: ArticleAnalysisRow | ArticleAnalysisRow[] | null;
+  article_analyses: AnalysisForDisplay | AnalysisForDisplay[] | null;
 };
 
 const ARTICLE_FIELDS = `
@@ -151,32 +159,92 @@ export async function getArticleById(
 }
 
 /**
- * The Related Stories stand-in: the most recent other analysed articles.
+ * One article's embedding in pgvector's text form, or null when the article has
+ * no analysis or no embedding yet (AGENTS.md section 20).
  *
- * AGENTS.md section 20 replaces this with `getRelatedArticles(articleId,
- * embedding)`, ordering by cosine distance (`<=>`) once pgvector is enabled.
+ * The value is never parsed: PostgREST returns `"[0.1,0.2,...]"`, which is
+ * exactly what the similarity function takes back as its parameter. A
+ * `number[]` is accepted too, in case a future PostgREST returns one.
  */
-export async function getRecentArticlesExcluding(
-  id: string,
-  limit = 6
+export async function getArticleEmbedding(
+  articleId: string
+): Promise<string | null> {
+  const supabase = getServiceRoleClient();
+
+  const { data, error } = await supabase
+    .from("article_analyses")
+    .select("embedding")
+    .eq("article_id", articleId)
+    .maybeSingle();
+
+  if (error) {
+    if (isMiss(error)) return null;
+    throw new Error(`getArticleEmbedding: ${error.message}`);
+  }
+
+  const embedding: unknown = data?.embedding ?? null;
+
+  if (typeof embedding === "string") return embedding;
+  if (Array.isArray(embedding)) return `[${embedding.join(",")}]`;
+
+  return null;
+}
+
+/**
+ * The articles most similar to `embedding`, nearest first (AGENTS.md
+ * section 20).
+ *
+ * Ordering happens in `match_related_articles`, because PostgREST cannot
+ * express `order by embedding <=> $1`. That function returns ids only; the rows
+ * are loaded here with the same select every other read uses, so there is one
+ * row shape and one mapper. The current article, unanalysed articles and rows
+ * without an embedding are all excluded inside the function.
+ */
+export async function getRelatedArticles(
+  articleId: string,
+  embedding: string,
+  limit = 5
 ): Promise<ArticleWithAnalysis[]> {
   const supabase = getServiceRoleClient();
 
-  const rows = unwrap(
-    "getRecentArticlesExcluding",
-    await supabase
-      .from("articles")
-      .select(ARTICLE_SELECT)
-      .neq("id", id)
-      .order("published_at", { ascending: false })
-      .limit(limit + 1)
-      .returns<RawArticleRow[]>()
+  const matches = unwrap(
+    "getRelatedArticles",
+    await supabase.rpc("match_related_articles", {
+      p_article_id: articleId,
+      p_embedding: embedding,
+      p_limit: limit,
+    })
   );
 
-  return rows
-    .map(flatten)
-    .filter((row) => row.article_analyses !== null)
-    .slice(0, limit);
+  const ids = matches.map((match) => match.article_id);
+
+  if (ids.length === 0) return [];
+
+  const byId = new Map<string, ArticleWithAnalysis>();
+
+  // Chunked like every other `.in()` filter in this project (section 9).
+  for (let i = 0; i < ids.length; i += URL_EXISTENCE_CHUNK_SIZE) {
+    const chunk = ids.slice(i, i + URL_EXISTENCE_CHUNK_SIZE);
+
+    const rows = unwrap(
+      "getRelatedArticles (rows)",
+      await supabase
+        .from("articles")
+        .select(ARTICLE_SELECT)
+        .in("id", chunk)
+        .returns<RawArticleRow[]>()
+    );
+
+    for (const row of rows) byId.set(row.id, flatten(row));
+  }
+
+  // Back into the function's order: `.in()` does not preserve it.
+  return ids
+    .map((id) => byId.get(id))
+    .filter(
+      (row): row is ArticleWithAnalysis =>
+        row !== undefined && row.article_analyses !== null
+    );
 }
 
 /**

@@ -77,8 +77,8 @@ create index if not exists articles_analyzed_at_idx
 -- section 19, so invalid AI output cannot be stored even if validation in code
 -- is bypassed.
 --
--- The `embedding vector(1536)` column belongs to AGENTS.md section 20 and is
--- added there, after pgvector is enabled. It is deliberately absent here.
+-- The `embedding vector(1536)` column is added by the pgvector section at the
+-- bottom of this file (AGENTS.md section 20), after the extension exists.
 
 create table if not exists public.article_analyses (
   id uuid primary key default gen_random_uuid(),
@@ -199,3 +199,79 @@ grant select, insert, update, delete on table public.oxylabs_schedules to servic
 grant select, insert, update, delete on table public.oxylabs_schedule_runs to service_role;
 
 grant usage, select on sequence public.logs_id_seq to service_role;
+
+-- ---------------------------------------------------------------------------
+-- pgvector: article embeddings and similarity search
+-- ---------------------------------------------------------------------------
+-- AGENTS.md section 20. Enable the extension in Supabase Dashboard -> Database
+-- -> Extensions, then run this block in the SQL Editor before testing.
+--
+-- `embedding` is nullable on purpose: a row written before pgvector existed, or
+-- one whose embedding call failed, is a backfill candidate. The analysis
+-- pipeline picks those up on its next run without re-running the analysis.
+
+create extension if not exists vector;
+
+alter table public.article_analyses
+  add column if not exists embedding vector(1536);
+
+-- IVFFlat with cosine distance, matching the `<=>` ordering used below.
+-- `lists = 10` is sized for the hundreds-to-few-thousand rows biasly stores;
+-- raise it (roughly rows / 1000) as the corpus grows.
+create index if not exists article_analyses_embedding_idx
+  on public.article_analyses using ivfflat (embedding vector_cosine_ops)
+  with (lists = 10);
+
+-- ---------------------------------------------------------------------------
+-- match_related_articles
+-- ---------------------------------------------------------------------------
+-- PostgREST cannot express `order by embedding <=> $1`, so similarity search
+-- goes through this one function. It returns ids and similarity only; the
+-- caller re-loads full rows with its own select, which already embeds
+-- `sources`, so nothing here duplicates that shape.
+--
+-- `security invoker`, never definer, and an empty `search_path`, per the
+-- Supabase skill's function traps.
+--
+-- Because the search path is empty, the cosine-distance operator is written as
+-- `OPERATOR(extensions.<=>)`: Supabase installs pgvector into the `extensions`
+-- schema, and an unqualified `<=>` cannot be resolved from an empty search path
+-- ("operator does not exist: extensions.vector <=> extensions.vector" at
+-- create time). Qualifying the operator is the same operator the IVFFlat index
+-- is built on, so the index is still used. If a project installs pgvector into
+-- a different schema, change the qualifier to match.
+--
+-- `ivfflat.probes = 10` matches `lists = 10` above: with the default single
+-- probe, a small table would scan one list and could return fewer than the
+-- requested number of neighbours.
+
+create or replace function public.match_related_articles(
+  p_article_id uuid,
+  p_embedding vector(1536),
+  p_limit integer default 5
+)
+returns table (article_id uuid, similarity real)
+language sql
+stable
+security invoker
+set search_path = ''
+set ivfflat.probes = 10
+as $$
+  select a.id,
+         (1 - (an.embedding operator(extensions.<=>) p_embedding))::real
+  from public.article_analyses an
+  join public.articles a on a.id = an.article_id
+  where an.embedding is not null
+    and a.analyzed_at is not null
+    and a.id <> p_article_id
+  order by an.embedding operator(extensions.<=>) p_embedding
+  limit least(greatest(coalesce(p_limit, 5), 1), 20);
+$$;
+
+-- A function in `public` is executable by every role by default, so the grant
+-- is narrowed to the only role biasly uses.
+revoke all on function public.match_related_articles(uuid, vector, integer)
+  from public, anon, authenticated;
+
+grant execute on function public.match_related_articles(uuid, vector, integer)
+  to service_role;

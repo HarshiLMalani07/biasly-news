@@ -7,7 +7,7 @@ import type {
   ArticleRow,
 } from "@/lib/supabase/types";
 
-/** Analysis reads and writes (AGENTS.md section 19). */
+/** Analysis reads and writes (AGENTS.md sections 19 and 20). */
 
 /** Matches the URL existence check's cap on `.in()` values (section 9). */
 const ID_CHUNK_SIZE = 15;
@@ -138,22 +138,43 @@ export function deriveBiasScore(
 }
 
 /**
- * Saves one analysis and only then marks the article analysed (AGENTS.md
- * section 19 rule 6). If the insert fails, `analyzed_at` stays null and the
- * article is picked up by the next run.
+ * A vector in the text form pgvector accepts, `"[0.1,0.2,...]"`. Exported so
+ * nothing else re-derives it (AGENTS.md section 20).
+ */
+export function toVectorLiteral(values: number[]): string {
+  return `[${values.join(",")}]`;
+}
+
+/**
+ * Saves one analysis and its embedding, and only then marks the article
+ * analysed (AGENTS.md section 19 rule 6 and section 20).
+ *
+ * `analyzed_at` is stamped only when the embedding is present: section 20
+ * requires both to be saved first. A null embedding still stores the analysis -
+ * the model call has already been paid for - and leaves the row for the next
+ * run's embedding backfill.
  */
 export async function saveAnalysis(
-  analysis: ArticleAnalysisInsert
+  analysis: ArticleAnalysisInsert,
+  embedding: number[] | null
 ): Promise<void> {
   const supabase = getServiceRoleClient();
 
   const { error: analysisError } = await supabase
     .from("article_analyses")
-    .upsert(analysis, { onConflict: "article_id" });
+    .upsert(
+      {
+        ...analysis,
+        embedding: embedding ? toVectorLiteral(embedding) : null,
+      },
+      { onConflict: "article_id" }
+    );
 
   if (analysisError) {
     throw new Error(`saveAnalysis: ${analysisError.message}`);
   }
+
+  if (!embedding) return;
 
   const { error: articleError } = await supabase
     .from("articles")
@@ -163,4 +184,60 @@ export async function saveAnalysis(
   if (articleError) {
     throw new Error(`saveAnalysis (mark analyzed): ${articleError.message}`);
   }
+}
+
+/**
+ * Backfills one embedding onto an existing analysis and stamps the article
+ * analysed if it is not already (AGENTS.md section 20).
+ *
+ * This is the path for a row whose analysis exists but whose embedding is null -
+ * an analysis written before pgvector, or one whose embedding call failed. The
+ * analysis itself is never regenerated.
+ */
+export async function saveEmbedding(
+  articleId: string,
+  embedding: number[]
+): Promise<void> {
+  const supabase = getServiceRoleClient();
+
+  const { error: embeddingError } = await supabase
+    .from("article_analyses")
+    .update({ embedding: toVectorLiteral(embedding) })
+    .eq("article_id", articleId);
+
+  if (embeddingError) {
+    throw new Error(`saveEmbedding: ${embeddingError.message}`);
+  }
+
+  const { error: articleError } = await supabase
+    .from("articles")
+    .update({ analyzed_at: new Date().toISOString() })
+    .eq("id", articleId)
+    .is("analyzed_at", null);
+
+  if (articleError) {
+    throw new Error(`saveEmbedding (mark analyzed): ${articleError.message}`);
+  }
+}
+
+/**
+ * Article ids whose analysis exists but whose embedding is null - the backfill
+ * queue of AGENTS.md section 20.
+ *
+ * Only `article_id` is selected: the vector column itself is ~20 KB of text per
+ * row, so it never travels just to be tested for null.
+ */
+export async function getArticleIdsMissingEmbedding(): Promise<string[]> {
+  const supabase = getServiceRoleClient();
+
+  const rows = unwrap(
+    "getArticleIdsMissingEmbedding",
+    await supabase
+      .from("article_analyses")
+      .select("article_id")
+      .is("embedding", null)
+      .order("created_at", { ascending: false })
+  );
+
+  return rows.map((row) => row.article_id);
 }

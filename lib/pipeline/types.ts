@@ -76,7 +76,12 @@ export type AnalysisFailureReason =
   // Nothing to analyse: the article has too little text. Skipped, not failed.
   | "insufficient_text"
   // The article vanished between the pending scan and the batch load.
-  | "article_missing";
+  | "article_missing"
+  // The embedding call failed (AGENTS.md section 20). The analysis is still
+  // saved; the article stays unstamped and is backfilled on the next run.
+  | "embedding_failed"
+  // The embedding was generated but could not be written.
+  | "embedding_save_failed";
 
 export type AnalyzeStatus = "completed" | "completed_with_errors" | "failed";
 
@@ -87,6 +92,8 @@ export type AnalyzeBatchOutcome = {
   analyzed: number;
   skipped: number;
   failed: number;
+  /** Articles that also got an embedding saved (AGENTS.md section 20). */
+  embedded: number;
 };
 
 /** The summary object of AGENTS.md section 19 rules 7-9. */
@@ -94,11 +101,19 @@ export type AnalyzeSummary = {
   status: AnalyzeStatus;
   runId: string;
   model: string;
+  /** The embedding model of AGENTS.md section 20. */
+  embeddingModel: string;
   /** Pending articles found when the run started - what it set out to do. */
   pendingAtStart: number;
   analyzed: number;
   skipped: number;
   failed: number;
+  /** Newly analysed articles that also got an embedding. */
+  embedded: number;
+  /** Existing analyses whose missing embedding this run filled in. */
+  embeddingsBackfilled: number;
+  /** Analyses still without an embedding when the run stopped. */
+  embeddingsMissingAtEnd: number;
   batches: number;
   batchSize: number;
   /** Still pending when the run stopped; 0 after a clean full run. */

@@ -12,8 +12,9 @@ import {
 } from "@/lib/supabase/mappers";
 import {
   getArticleById,
+  getArticleEmbedding,
   getFeedArticles,
-  getRecentArticlesExcluding,
+  getRelatedArticles as getRelatedArticleRows,
 } from "@/lib/supabase/queries/articles";
 
 /**
@@ -68,15 +69,25 @@ export async function getArticleDetail(
   return row ? toArticleDetail(row) : null;
 }
 
+/** Related stories shown on a details page (AGENTS.md section 20). */
+export const RELATED_ARTICLES_LIMIT = 5;
+
 /**
- * Related stories. Until pgvector lands (AGENTS.md section 20) this is the
- * most recent other analysed articles rather than a similarity search.
+ * Related stories: the articles nearest this one by cosine distance over their
+ * analysis embeddings (AGENTS.md section 20).
+ *
+ * An article with no embedding has nothing to compare against, so this returns
+ * an empty list and the page renders no Related Stories section at all.
  */
 export async function getRelatedArticles(
   id: string,
-  limit = 6
+  limit = RELATED_ARTICLES_LIMIT
 ): Promise<RelatedArticle[]> {
-  const rows = await getRecentArticlesExcluding(id, limit);
+  const embedding = await getArticleEmbedding(id);
+
+  if (embedding === null) return [];
+
+  const rows = await getRelatedArticleRows(id, embedding, limit);
 
   return rows.map(toRelatedArticle);
 }

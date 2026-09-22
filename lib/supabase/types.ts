@@ -130,6 +130,13 @@ export type Database = {
           loaded_terms: string[];
           disclaimer: string | null;
           model: string;
+          /**
+           * `vector(1536)` (AGENTS.md section 20). PostgREST serialises a
+           * vector as its text form, `"[0.1,0.2,...]"`, so it is a string on
+           * the way out and accepted as one on the way in. Null until the
+           * embedding has been generated.
+           */
+          embedding: string | null;
           created_at: string;
         };
         Insert: {
@@ -148,6 +155,7 @@ export type Database = {
           loaded_terms?: string[];
           disclaimer?: string | null;
           model: string;
+          embedding?: string | null;
           created_at?: string;
         };
         Update: {
@@ -166,6 +174,7 @@ export type Database = {
           loaded_terms?: string[];
           disclaimer?: string | null;
           model?: string;
+          embedding?: string | null;
           created_at?: string;
         };
         Relationships: [
@@ -291,7 +300,21 @@ export type Database = {
       };
     };
     Views: Record<string, never>;
-    Functions: Record<string, never>;
+    Functions: {
+      /**
+       * Cosine-distance similarity search (AGENTS.md section 20). PostgREST
+       * cannot express `order by embedding <=> $1`, so the ordering lives in
+       * this function; `p_embedding` is the vector's text form.
+       */
+      match_related_articles: {
+        Args: {
+          p_article_id: string;
+          p_embedding: string;
+          p_limit?: number;
+        };
+        Returns: { article_id: string; similarity: number }[];
+      };
+    };
     Enums: Record<string, never>;
     CompositeTypes: Record<string, never>;
   };
